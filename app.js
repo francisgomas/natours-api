@@ -1,59 +1,59 @@
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const app = express();
-//use middleware to get data for post requests
-app.use(express.json());
+const morgan = require('morgan');
+const toursRoute = require(`${__dirname}/routes/tours.js`);
+global.path = path.join(__dirname); //path of directory
 
-const writeToFile = (template, data) => {
-    return new Promise((resolve, reject) => {
-        fs.writeFile(template, data, (err) => {
-            if (err) reject(err);
-            resolve('Written to file!');
-        });
-    });
-}
+//MIDDLEWARE
+app.use(express.json()); //to get data through req.body
+app.use(morgan('dev')); //shows logs in console e.g. POST url status code etc
+app.use(express.static(`${__dirname}/public`)); //display static or html images to browser
 
-const data = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/tours-simple.json`));
+app.use((req, res, next) => {
+    console.log('this is the middleware');
+    next();
+})
 
-//routes
-const BASE_URL = '/api';
-app.get(`${BASE_URL}/tours`, (req, res) => {
+//GET DATA FROM FILE
+const users = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/users.json`));
+
+
+const getAllUsers = (req, res) => {
     res.status(200).json({
         status: 'success',
-        count: data.length, 
-        data: data
-    });
-});
+        count: users.length,
+        data: users
+    })
+}
 
-app.get(`${BASE_URL}/tours/:id`, (req, res) => {
-    let id = req.params.id * 1;
-    const search = data.find(el => el.id === id);
+const getSingleUser = (req, res) => {
+    const search = users.find(x => x._id === req.params.id);
 
-    if (search == undefined) {
+    if (!search){
         return res.status(404).json({
             status: 'error',
-            data: 'No record found!'
-        })
+            message: 'Record does not exist!'
+        });
     }
- 
+
     res.status(200).json({
         status: 'success',
         data: search
     })
-});
+}
 
-
-
-app.post(`${BASE_URL}/tours`, (req, res) => {
-    const newId = data[data.length-1].id + 1;
-    req.body.id = newId
-
-    data.push(req.body);
+const createUser = (req, res) => {
+    const id = users[users.length-1]._id;
+    req.body.id = id;
     
-    writeToFile(`${__dirname}/dev-data/data/tours-simple.json`, JSON.stringify(data)).then(output => {
-        res.status(201).json({
+    users.push(req.body);
+
+    writeToFile(`${__dirname}/dev-data/data/users.json`, users).then(data => {
+        res.status(200).json({
             status: 'success',
-            data: output
+            message: data
         })
     })
     .catch(err => {
@@ -62,8 +62,22 @@ app.post(`${BASE_URL}/tours`, (req, res) => {
             data: err
         })
     })
-});
+}
 
+
+//ROUTES
+const usersRoute = express.Router();
+
+app.use('/api/tours', toursRoute);
+app.use('/api/users', usersRoute);
+
+
+usersRoute.route('/').get(getAllUsers).post(createUser);
+usersRoute.route('/:id').get(getSingleUser)
+
+
+
+//SERVER
 const port = 8000;
 app.listen(port, '127.0.0.1', () => {
     console.log(`listening on port ${port}`);
