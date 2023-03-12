@@ -1,24 +1,26 @@
 const express = require('express');
 const fs = require('fs');
+const dotenv = require('dotenv');
 const path = require('path');
 const app = express();
 const morgan = require('morgan');
 const toursRoute = require(`${__dirname}/routes/tours.js`);
 global.path = path.join(__dirname); //path of directory
 
+//env inclusion
+dotenv.config({path: './config.env'})
+
 //MIDDLEWARE
 app.use(express.json()); //to get data through req.body
-app.use(morgan('dev')); //shows logs in console e.g. POST url status code etc
-app.use(express.static(`${__dirname}/public`)); //display static or html images to browser
 
-app.use((req, res, next) => {
-    console.log('this is the middleware');
-    next();
-})
+if (process.env.NODE_ENV === 'development'){
+    app.use(morgan('dev')); //shows logs in console e.g. POST url status code etc
+}
+
+app.use(express.static(`${__dirname}/public`)); //display static or html images to browser
 
 //GET DATA FROM FILE
 const users = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/users.json`));
-
 
 const getAllUsers = (req, res) => {
     res.status(200).json({
@@ -77,8 +79,7 @@ usersRoute.route('/:id').get(getSingleUser)
 
 
 
-//SERVER
-const port = 8000;
-app.listen(port, '127.0.0.1', () => {
+const port = process.env.PORT;
+app.listen(port, process.env.BASE_URL, () => {
     console.log(`listening on port ${port}`);
 });
