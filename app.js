@@ -2,9 +2,10 @@ const express = require('express');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const path = require('path');
+const mongoose = require('mongoose');
 const app = express();
 const morgan = require('morgan');
-const toursRoute = require(`${__dirname}/routes/tours.js`);
+const toursRoute = require(`${__dirname}/routes/tourRoute.js`);
 global.path = path.join(__dirname); //path of directory
 
 //env inclusion
@@ -17,67 +18,22 @@ if (process.env.NODE_ENV === 'development'){
     app.use(morgan('dev')); //shows logs in console e.g. POST url status code etc
 }
 
+//CONNECTION TO DATABASE
+const DB = process.env.DATABASE_USERNAME.replace(
+    '<DATABASE_NAME>',
+    process.env.DATABASE_NAME
+);
+mongoose.connect(DB).then(() => {
+    console.log('DB connected successfully!');
+})
+.catch(err => {
+    console.log(`Errors: ${err}`);
+});
+
 app.use(express.static(`${__dirname}/public`)); //display static or html images to browser
 
-//GET DATA FROM FILE
-const users = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/users.json`));
-
-const getAllUsers = (req, res) => {
-    res.status(200).json({
-        status: 'success',
-        count: users.length,
-        data: users
-    })
-}
-
-const getSingleUser = (req, res) => {
-    const search = users.find(x => x._id === req.params.id);
-
-    if (!search){
-        return res.status(404).json({
-            status: 'error',
-            message: 'Record does not exist!'
-        });
-    }
-
-    res.status(200).json({
-        status: 'success',
-        data: search
-    })
-}
-
-const createUser = (req, res) => {
-    const id = users[users.length-1]._id;
-    req.body.id = id;
-    
-    users.push(req.body);
-
-    writeToFile(`${__dirname}/dev-data/data/users.json`, users).then(data => {
-        res.status(200).json({
-            status: 'success',
-            message: data
-        })
-    })
-    .catch(err => {
-        res.status(404).json({
-            status: 'error',
-            data: err
-        })
-    })
-}
-
-
 //ROUTES
-const usersRoute = express.Router();
-
 app.use('/api/tours', toursRoute);
-app.use('/api/users', usersRoute);
-
-
-usersRoute.route('/').get(getAllUsers).post(createUser);
-usersRoute.route('/:id').get(getSingleUser)
-
-
 
 const port = process.env.PORT;
 app.listen(port, process.env.BASE_URL, () => {
