@@ -2,12 +2,36 @@ const Tour = require('../models/tourModel');
 
 module.exports = {
     getAllTours: async (req, res) => {
-        try {
-            const getTours = await Tour.find();
+        try {            
+            //FILTER
+            const queryObj = { ...req.query }; //assigns a copy of req.query, if directly assigned it would be passed by ref and not value
+            const exceptions = ['page', 'sort', 'limit', 'fields'];
+            exceptions.forEach(x => delete queryObj[x]);
+            let getTours = Tour.find(queryObj);            
+
+            //SORT
+            if (req.query.sort){
+                const sortBy = req.query.sort.split(',').join(' ');
+                getTours = getTours.sort(sortBy);
+            }
+            else {
+                getTours = getTours.sort('-createdAt');
+            }
+
+            //SELECTED FIELDS IN RESULT ONLY
+            if (req.query.fields){
+                const fields = req.query.fields.split(',').join(' ');
+                getTours = getTours.select(fields);
+            }
+            else {
+                getTours = getTours.select('-__v');
+            }
+
+            const result = await getTours;
             res.status(200).json({
                 status: 'success',
-                count: getTours.length,
-                data: getTours
+                count: result.length,
+                data:  result
             });
         }
         catch(err){
@@ -59,11 +83,32 @@ module.exports = {
         }  
     },
     
-    updateTour: (req, res) => {
-        res.status(200).json({
-            status: 'success',
-            data: 'Record updated'
-        })
+    updateTour: async (req, res) => {
+       try{
+            const changeTour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
+                new: true,
+                runValidators: true
+            });
+
+            if (changeTour != null){
+                res.status(200).json({
+                    status: 'success',
+                    data: changeTour
+                });
+            }
+            else {
+                res.status(404).json({
+                    status: 'fail',
+                    message: 'Unable to update or id not found. Error has occured!'
+                });
+            }
+       }
+       catch(err){
+            res.status(404).json({
+                status: 'fail',
+                message: err
+            });
+       }
     },
 
     deleteTour: async (req, res) => {
